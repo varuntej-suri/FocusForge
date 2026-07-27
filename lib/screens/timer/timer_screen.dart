@@ -1,0 +1,289 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+class TimerScreen extends StatefulWidget {
+  final int minutes;
+
+  const TimerScreen({
+    super.key,
+    required this.minutes,
+  });
+
+  @override
+  State<TimerScreen> createState() => _TimerScreenState();
+}
+
+class _TimerScreenState extends State<TimerScreen> {
+  late int totalSeconds;
+  late int remainingSeconds;
+
+  Timer? timer;
+  bool isRunning = true;
+
+  @override
+  @override
+  void initState() {
+    super.initState();
+
+    totalSeconds = widget.minutes * 60;
+    remainingSeconds = totalSeconds;
+
+    // Prevent screen from sleeping
+    WakelockPlus.enable();
+
+    startTimer();
+  }
+
+  void startTimer() {
+    timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) {
+        if (remainingSeconds > 0) {
+          setState(() {
+            remainingSeconds--;
+          });
+        } else {
+          timer.cancel();
+          WakelockPlus.disable();
+          
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("🎉 Focus Session Completed!"),
+              ),
+            );
+
+            Navigator.pop(context); 
+        }
+      },
+    );
+
+    setState(() {
+      isRunning = true;
+    });
+  }
+
+  void pauseTimer() {
+    timer?.cancel();
+
+    setState(() {
+      isRunning = false;
+    });
+  }
+
+  void resumeTimer() {
+    startTimer();
+  }
+
+  String formatTime() {
+    final minutes = remainingSeconds ~/ 60;
+    final seconds = remainingSeconds % 60;
+
+    return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    WakelockPlus.disable();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double progress =
+        remainingSeconds / totalSeconds;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          "Focus Session",
+        ),
+      ),
+
+      body: SafeArea(
+        child: Column(
+          children: [
+
+            const SizedBox(height: 20),
+
+            const Text(
+              "Stay Focused 🔥",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            const Text(
+              "Complete your session without distractions",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+            ),
+
+            Expanded(
+              child: Center(
+                child: SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+
+                      SizedBox(
+                        width: 300,
+                        height: 300,
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 14,
+                          backgroundColor: Colors.white24,
+                          valueColor:
+                              const AlwaysStoppedAnimation<Color>(
+                            Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+
+                          const Icon(
+                            Icons.timer,
+                            color: Colors.deepPurple,
+                            size: 40,
+                          ),
+
+                          const SizedBox(height: 15),
+
+                          Text(
+                            formatTime(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 54,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                                                    const SizedBox(height: 10),
+
+                          Text(
+                            "${widget.minutes} Minute Session",
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
+              ),
+              child: Row(
+                children: [
+
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        if (isRunning) {
+                          pauseTimer();
+                        } else {
+                          resumeTimer();
+                        }
+                      },
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(
+                          double.infinity,
+                          55,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(15),
+                        ),
+                      ),
+
+                      icon: Icon(
+                        isRunning
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                      ),
+
+                      label: Text(
+                        isRunning
+                            ? "Pause"
+                            : "Resume",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 15),
+
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        timer?.cancel();
+                        WakelockPlus.disable();
+                        Navigator.pop(context);
+                      },
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(
+                          double.infinity,
+                          55,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(15),
+                        ),
+                      ),
+
+                      icon: const Icon(
+                        Icons.exit_to_app,
+                      ),
+
+                      label: const Text(
+                        "Exit",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+          ],
+        ),
+      ),
+    );
+  }
+}
