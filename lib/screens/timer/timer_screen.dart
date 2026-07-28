@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'session_result_screen.dart';
+
 class TimerScreen extends StatefulWidget {
   final int minutes;
 
@@ -22,19 +24,20 @@ class _TimerScreenState extends State<TimerScreen> {
   bool isRunning = true;
 
   @override
-  @override
   void initState() {
     super.initState();
 
     totalSeconds = widget.minutes * 60;
     remainingSeconds = totalSeconds;
 
-    // Prevent screen from sleeping
     WakelockPlus.enable();
 
     startTimer();
   }
 
+  // -----------------------------
+  // Start Timer
+  // -----------------------------
   void startTimer() {
     timer = Timer.periodic(
       const Duration(seconds: 1),
@@ -45,15 +48,20 @@ class _TimerScreenState extends State<TimerScreen> {
           });
         } else {
           timer.cancel();
-          WakelockPlus.disable();
-          
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("🎉 Focus Session Completed!"),
-              ),
-            );
 
-            Navigator.pop(context); 
+          WakelockPlus.disable();
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionResultScreen(
+                minutes: widget.minutes,
+                totalSeconds: totalSeconds,
+                focusedSeconds: totalSeconds,
+                completed: true,
+              ),
+            ),
+          );
         }
       },
     );
@@ -63,6 +71,9 @@ class _TimerScreenState extends State<TimerScreen> {
     });
   }
 
+  // -----------------------------
+  // Pause Timer
+  // -----------------------------
   void pauseTimer() {
     timer?.cancel();
 
@@ -71,10 +82,61 @@ class _TimerScreenState extends State<TimerScreen> {
     });
   }
 
+  // -----------------------------
+  // Resume Timer
+  // -----------------------------
   void resumeTimer() {
     startTimer();
+  }  // -----------------------------
+  // Skip Session Dialog
+  // -----------------------------
+  void showSkipDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Skip Session?"),
+        content: const Text(
+          "Are you sure you want to skip this focus session?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text("Continue"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+
+              timer?.cancel();
+              WakelockPlus.disable();
+
+              final focusedSeconds =
+                  totalSeconds - remainingSeconds;
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SessionResultScreen(
+                    minutes: widget.minutes,
+                    totalSeconds: totalSeconds,
+                    focusedSeconds: focusedSeconds,
+                    completed: false,
+                  ),
+                ),
+              );
+            },
+            child: const Text("Skip"),
+          ),
+        ],
+      ),
+    );
   }
 
+  // -----------------------------
+  // Format Timer
+  // -----------------------------
   String formatTime() {
     final minutes = remainingSeconds ~/ 60;
     final seconds = remainingSeconds % 60;
@@ -91,8 +153,7 @@ class _TimerScreenState extends State<TimerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final double progress =
-        remainingSeconds / totalSeconds;
+    final progress = remainingSeconds / totalSeconds;
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -101,39 +162,38 @@ class _TimerScreenState extends State<TimerScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          "Focus Session",
-        ),
+        title: const Text("Focus Session"),
       ),
 
       body: SafeArea(
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
-
-            const Text(
-              "Stay Focused 🔥",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
+              const Text(
+                "Stay Focused 🔥",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            const Text(
-              "Complete your session without distractions",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
+              const Text(
+                "Complete your session without distractions",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
               ),
-            ),
 
-            Expanded(
-              child: Center(
+              const SizedBox(height: 30),
+
+              Center(
                 child: SizedBox(
                   width: 300,
                   height: 300,
@@ -175,7 +235,8 @@ class _TimerScreenState extends State<TimerScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                                                    const SizedBox(height: 10),
+
+                          const SizedBox(height: 10),
 
                           Text(
                             "${widget.minutes} Minute Session",
@@ -190,98 +251,113 @@ class _TimerScreenState extends State<TimerScreen> {
                   ),
                 ),
               ),
-            ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 20,
-              ),
-              child: Row(
-                children: [
-
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (isRunning) {
-                          pauseTimer();
-                        } else {
-                          resumeTimer();
-                        }
-                      },
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(
-                          double.infinity,
-                          55,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+                child: Column(
+                  children: [
+                      Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (isRunning) {
+                                pauseTimer();
+                              } else {
+                                resumeTimer();
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 55),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            icon: Icon(
+                              isRunning
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                            ),
+                            label: Text(
+                              isRunning
+                                  ? "Pause"
+                                  : "Resume",
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(15),
+
+                        const SizedBox(width: 15),
+
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              timer?.cancel();
+                              WakelockPlus.disable();
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 55),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            icon: const Icon(Icons.exit_to_app),
+                            label: const Text(
+                              "Exit",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
 
-                      icon: Icon(
-                        isRunning
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                      ),
+                    const SizedBox(height: 15),
 
-                      label: Text(
-                        isRunning
-                            ? "Pause"
-                            : "Resume",
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: OutlinedButton.icon(
+                        onPressed: showSkipDialog,
+                        icon: const Icon(Icons.skip_next),
+                        label: const Text(
+                          "Skip Session",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(
+                            color: Colors.orange,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-
-                  const SizedBox(width: 15),
-
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        timer?.cancel();
-                        WakelockPlus.disable();
-                        Navigator.pop(context);
-                      },
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(
-                          double.infinity,
-                          55,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(15),
-                        ),
-                      ),
-
-                      icon: const Icon(
-                        Icons.exit_to_app,
-                      ),
-
-                      label: const Text(
-                        "Exit",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-          ],
+
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
