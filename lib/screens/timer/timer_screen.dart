@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'celebration_screen.dart';
 import 'session_result_screen.dart';
 
 class TimerScreen extends StatefulWidget {
@@ -17,10 +19,14 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> {
+  // -----------------------------
+  // Timer Variables
+  // -----------------------------
   late int totalSeconds;
   late int remainingSeconds;
 
   Timer? timer;
+
   bool isRunning = true;
 
   @override
@@ -51,14 +57,15 @@ class _TimerScreenState extends State<TimerScreen> {
 
           WakelockPlus.disable();
 
+          if (!mounted) return;
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => SessionResultScreen(
+              builder: (_) => CelebrationScreen(
                 minutes: widget.minutes,
                 totalSeconds: totalSeconds,
                 focusedSeconds: totalSeconds,
-                completed: true,
               ),
             ),
           );
@@ -87,7 +94,8 @@ class _TimerScreenState extends State<TimerScreen> {
   // -----------------------------
   void resumeTimer() {
     startTimer();
-  }  // -----------------------------
+  }
+    // -----------------------------
   // Skip Session Dialog
   // -----------------------------
   void showSkipDialog() {
@@ -112,8 +120,7 @@ class _TimerScreenState extends State<TimerScreen> {
               timer?.cancel();
               WakelockPlus.disable();
 
-              final focusedSeconds =
-                  totalSeconds - remainingSeconds;
+              final focusedSeconds = totalSeconds - remainingSeconds;
 
               Navigator.pushReplacement(
                 context,
@@ -144,6 +151,9 @@ class _TimerScreenState extends State<TimerScreen> {
     return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
   }
 
+  // -----------------------------
+  // Dispose
+  // -----------------------------
   @override
   void dispose() {
     timer?.cancel();
@@ -157,14 +167,12 @@ class _TimerScreenState extends State<TimerScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         title: const Text("Focus Session"),
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -200,7 +208,6 @@ class _TimerScreenState extends State<TimerScreen> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-
                       SizedBox(
                         width: 300,
                         height: 300,
@@ -218,7 +225,6 @@ class _TimerScreenState extends State<TimerScreen> {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-
                           const Icon(
                             Icons.timer,
                             color: Colors.deepPurple,
@@ -259,7 +265,7 @@ class _TimerScreenState extends State<TimerScreen> {
                 ),
                 child: Column(
                   children: [
-                      Row(
+                    Row(
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
@@ -273,9 +279,11 @@ class _TimerScreenState extends State<TimerScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.deepPurple,
                               foregroundColor: Colors.white,
-                              minimumSize: const Size(double.infinity, 55),
+                              minimumSize:
+                                  const Size(double.infinity, 55),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
+                                borderRadius:
+                                    BorderRadius.circular(15),
                               ),
                             ),
                             icon: Icon(
@@ -307,9 +315,11 @@ class _TimerScreenState extends State<TimerScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
-                              minimumSize: const Size(double.infinity, 55),
+                              minimumSize:
+                                  const Size(double.infinity, 55),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
+                                borderRadius:
+                                    BorderRadius.circular(15),
                               ),
                             ),
                             icon: const Icon(Icons.exit_to_app),
@@ -346,11 +356,14 @@ class _TimerScreenState extends State<TimerScreen> {
                             color: Colors.orange,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius:
+                                BorderRadius.circular(15),
                           ),
                         ),
                       ),
                     ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
