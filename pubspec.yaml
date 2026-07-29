@@ -30,12 +30,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  audioplayers: ^6.0.0
+  
   confetti: ^0.8.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  wakelock_plus: ^1.2.8
+  wakelock_plus: ^1.4.0
+  audioplayers: ^6.0.0
+  
   cupertino_icons: ^1.0.8
+  
 
 dev_dependencies:
   flutter_test:
