@@ -34,3 +34,5 @@ def login_user(db: Session, email: str, password: str):
         return None
 
     return user
+def get_user_profile(db: Session, email: str):
+    return get_user_by_email(db, email)

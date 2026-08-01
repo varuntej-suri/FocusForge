@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from security import create_access_token
 import models
 import schemas
 import crud
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from security import verify_access_token
 
 from database import engine, SessionLocal
 
@@ -12,6 +14,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="FocusForge API")
 
+security = HTTPBearer()
 
 # Database Dependency
 def get_db():
@@ -62,11 +65,41 @@ def login(
             detail="Invalid email or password"
         )
 
+    access_token = create_access_token(
+    data={
+        "sub": logged_in_user.email
+    }
+)
+
     return {
-        "message": "Login Successful",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
             "id": logged_in_user.id,
             "name": logged_in_user.name,
             "email": logged_in_user.email
         }
+    }
+@app.get("/profile")
+def profile(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+
+    payload = verify_access_token(credentials.credentials)
+
+    email = payload.get("sub")
+
+    user = crud.get_user_profile(db, email)
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email
     }
