@@ -4,6 +4,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/session_card.dart';
 import '../timer/timer_screen.dart';
+import '../../services/token_service.dart';
+import '../../api/auth_api.dart';
+import '../../models/user_model.dart';
+
+import '../../models/focus_session_model.dart';
+import '../../api/session_api.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,8 +19,38 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  String formatMinutes(int minutes) {
+
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+
+    if (hours == 0) {
+      return "$mins min";
+    }
+
+    return "${hours}h ${mins}m";
+  }
+
+
   int selectedDuration = 90;
   int customDuration = 0;
+  UserModel? user;
+  List<FocusSession> sessions = [];
+
+  int totalMinutes = 0;
+  int totalSessions = 0;
+  bool isLoadingProfile = true;
+//   String formatMinutes(int minutes) {
+
+//   final hours = minutes ~/ 60;
+//   final mins = minutes % 60;
+
+//   if (hours == 0) {
+//     return "$mins min";
+//   }
+
+//   return "${hours}h ${mins}m";
+// }
 
   final TextEditingController customController =
       TextEditingController();
@@ -36,18 +72,120 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    loadProfile();
+    loadDashboard();
+  }
+
+  Future<void> loadProfile() async {
+
+    UserModel? profile = await AuthApi.getProfile();
+
+    if (!mounted) return;
+
+    setState(() {
+      user = profile;
+      isLoadingProfile = false;
+    });
+  }
+  Future<void> loadDashboard() async {
+
+  final data = await SessionApi.getSessions();
+
+  int minutes = 0;
+
+  for (var session in data) {
+    if (session.completed) {
+      minutes += session.duration;
+    }
+  }
+  print("Dashboard Sessions: ${data.length}");
+  print("Dashboard Minutes: $minutes");
+  if (!mounted) return;
+
+  setState(() {
+    sessions = data;
+    totalSessions = data.length;
+    totalMinutes = minutes;
+  });
+}
+
+  String getGreeting() {
+  final hour = DateTime.now().hour;
+
+  if (hour >= 5 && hour < 12) {
+    return "Good Morning";
+  } else if (hour >= 12 && hour < 17) {
+    return "Good Afternoon";
+  } else if (hour >= 17 && hour < 21) {
+    return "Good Evening";
+  } else {
+    return "Good Night";
+  }
+}
+
+String getGreetingEmoji() {
+  final hour = DateTime.now().hour;
+
+  if (hour >= 5 && hour < 12) {
+    return "🌅";
+  } else if (hour >= 12 && hour < 17) {
+    return "☀️";
+  } else if (hour >= 17 && hour < 21) {
+    return "🌇";
+  } else {
+    return "🌙";
+  }
+}
+
+String getMotivation() {
+  final hour = DateTime.now().hour;
+
+  if (hour >= 5 && hour < 12) {
+    return "Ready to achieve today's goals?";
+  } else if (hour >= 12 && hour < 17) {
+    return "Keep your momentum going!";
+  } else if (hour >= 17 && hour < 21) {
+    return "Finish your day with a focused session.";
+  } else {
+    return "Consistency today builds success tomorrow.";
+  }
+}
+
+  @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       backgroundColor: AppColors.background,
 
       appBar: AppBar(
         centerTitle: true,
         title: const Text("FocusForge"),
-      ),
 
+        actions: [
+
+          IconButton(
+            icon: const Icon(Icons.logout),
+
+            onPressed: () async {
+
+              await TokenService.removeToken();
+
+              if (!mounted) return;
+
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(10),
 
           child: Column(
             crossAxisAlignment:
@@ -56,15 +194,128 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
 
               Text(
-                "Good Evening 👋",
+                user == null
+                    ? "${getGreeting()} ${getGreetingEmoji()}"
+                    : "${getGreeting()}, ${user!.name} ${getGreetingEmoji()}",
                 style: AppTextStyles.heading,
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
 
-              Text(
-                "Choose your focus session",
-                style: AppTextStyles.body,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  Text(
+                    user?.email ?? "",
+                    style: AppTextStyles.body,
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    getMotivation(),
+                    style: AppTextStyles.body.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+
+                  // const SizedBox(height: 10),
+                  
+                  const SizedBox(height: 4),
+
+                  const Text(
+                    "Today's Progress",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Container(
+  width: double.infinity,
+  padding: const EdgeInsets.all(18),
+  decoration: BoxDecoration(
+    color: Colors.deepPurple,
+    borderRadius: BorderRadius.circular(18),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+
+      const Text(
+        "📊 Today's Progress",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      const SizedBox(height: 10),
+
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+
+          const Text(
+            "⏱ Focus Time",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+
+          Text(
+            formatMinutes(totalMinutes),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+        ],
+      ),
+
+      const SizedBox(height: 8),
+
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+
+          const Text(
+            "✅ Sessions",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+
+          Text(
+            totalSessions.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+        ],
+      ),
+    ],
+  ),
+),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    "Choose your focus session",
+                    style: AppTextStyles.body,
+                  ),
+                ],
               ),
 
               const SizedBox(height: 25),
@@ -178,15 +429,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                     "START $selectedDuration MIN SESSION",
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 15,
                       fontWeight:
                           FontWeight.bold,
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.history),
+                  label: const Text(
+                    "Session History",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamed(context, "/history");
+                  },
+                ),
+              ),
 
-              const SizedBox(height: 15),
+              const SizedBox(height: 10),
             ],
           ),
         ),

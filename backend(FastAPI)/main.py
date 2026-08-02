@@ -14,7 +14,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="FocusForge API")
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=True)
 
 # Database Dependency
 def get_db():
@@ -102,4 +102,73 @@ def profile(
         "id": user.id,
         "name": user.name,
         "email": user.email
+    }
+
+@app.post(
+    "/sessions",
+    response_model=schemas.FocusSessionResponse
+)
+def create_session(
+    session: schemas.FocusSessionCreate,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+
+):
+    print("=== SESSION API CALLED ===")
+    print(credentials)
+    print("Authorization Header Received")
+    print(credentials)
+    print(credentials.credentials)
+
+    payload = verify_access_token(credentials.credentials)
+
+    email = payload.get("sub")
+
+    user = crud.get_user_profile(db, email)
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return crud.create_focus_session(
+        db,
+        user.id,
+        session
+    )
+
+@app.get(
+    "/sessions",
+    response_model=list[schemas.FocusSessionResponse]
+)
+def get_sessions(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+
+    payload = verify_access_token(credentials.credentials)
+
+    email = payload.get("sub")
+
+    user = crud.get_user_profile(db, email)
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return crud.get_user_sessions(
+        db,
+        user.id
+    )
+
+@app.get("/debug-token")
+def debug_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    return {
+        "scheme": credentials.scheme,
+        "token": credentials.credentials
     }

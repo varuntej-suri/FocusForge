@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-
+import '../../api/session_api.dart';
 import '../../services/dnd_service.dart';
 import 'celebration_screen.dart';
 import 'session_result_screen.dart';
@@ -55,34 +55,41 @@ class _TimerScreenState extends State<TimerScreen> {
 void startTimer() {
   timer = Timer.periodic(
     const Duration(seconds: 1),
-    (timer) {
+    (timer) async{
       if (remainingSeconds > 0) {
         setState(() {
           remainingSeconds--;
         });
-      } else {
-        // Stop Timer
-        timer.cancel();
+      } else  {
+          // Stop Timer
+          timer.cancel();
 
-        // Disable Wakelock
-        WakelockPlus.disable();
+          // Disable Wakelock
+          WakelockPlus.disable();
 
-        // Disable DND
-        DndService.disableDnd();
+          // Disable DND
+          DndService.disableDnd();
 
-        if (!mounted) return;
+          // Save session to backend
+          bool saved = await SessionApi.saveSession(
+            duration: widget.minutes,
+            completed: true,
+          );
 
-        // Go to Celebration Screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CelebrationScreen(
-              minutes: widget.minutes,
-              totalSeconds: totalSeconds,
-              focusedSeconds: totalSeconds,
+          print("Session Saved: $saved");
+
+          if (!mounted) return;
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CelebrationScreen(
+                minutes: widget.minutes,
+                totalSeconds: totalSeconds,
+                focusedSeconds: totalSeconds,
+              ),
             ),
-          ),
-        );
+          );
       }
     },
   );

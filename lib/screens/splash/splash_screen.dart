@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../home/home_screen.dart';
-
+import '../../services/token_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,20 +14,35 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
 
   @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
+void initState() {
+  super.initState();
+  checkLogin();
+}
+
+Future<void> checkLogin() async {
+
+  bool loggedIn = await TokenService.isLoggedIn();
+
+  await Future.delayed(const Duration(seconds: 2));
+
   if (!mounted) return;
 
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const HomeScreen(),
-    ),
-  );
-});
-    
+  if (loggedIn) {
+
+    Navigator.pushReplacementNamed(
+      context,
+      '/home',
+    );
+
+  } else {
+
+    Navigator.pushReplacementNamed(
+      context,
+      '/login',
+    );
+
   }
+}
 
   @override
   Widget build(BuildContext context) {
