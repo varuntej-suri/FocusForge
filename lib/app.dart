@@ -4,7 +4,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/history/history_screen.dart';
-
+import 'screens/profile/profile_screen.dart';
 
 class FocusForgeApp extends StatelessWidget {
   const FocusForgeApp({super.key});
@@ -28,6 +28,7 @@ class FocusForgeApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/splash': (context) => SplashScreen(),
         '/history': (context) => const HistoryScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }

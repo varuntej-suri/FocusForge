@@ -1,8 +1,11 @@
+
 import 'package:flutter/material.dart';
+
+import '../../api/auth_api.dart';
+import '../../services/notification_service.dart';
+import '../../services/token_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
-import '../../api/auth_api.dart';
-import '../../services/token_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,11 +27,10 @@ class _LoginScreenState extends State<LoginScreen> {
     passwordController.dispose();
     super.dispose();
   }
+
   Future<void> login() async {
-
-    if (emailController.text.isEmpty ||
+    if (emailController.text.trim().isEmpty ||
         passwordController.text.isEmpty) {
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please fill all fields"),
@@ -37,32 +39,28 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     final result = await AuthApi.loginUser(
       email: emailController.text.trim(),
       password: passwordController.text,
     );
 
-    setState(() {
-      isLoading = false;
-    });
-
     if (!mounted) return;
 
-    if (result["success"]) {
+    setState(() => isLoading = false);
+        if (result["success"]) {
+      final token = result["data"]["access_token"];
 
-      // Get JWT Token
-      String token = result["data"]["access_token"];
-
-      // Save Token
       await TokenService.saveToken(token);
-      String? savedToken = await TokenService.getToken();
 
-      print("Saved JWT:");
-      print(savedToken);
+      try {
+        await NotificationService.scheduleAllNotifications();
+      } catch (e) {
+        // Ignore notification scheduling errors
+      }
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -71,9 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       Navigator.pushReplacementNamed(context, "/home");
-
     } else {
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result["message"]),
@@ -81,12 +77,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
-
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -169,15 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const Text(
                       "Don't have an account?",
-                      style: TextStyle(color: Colors.white70),
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
                     ),
 
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/signup');
+                        Navigator.pushNamed(
+                          context,
+                          "/signup",
+                        );
                       },
                       child: const Text("Sign Up"),
                     ),
+
                   ],
                 ),
               ],

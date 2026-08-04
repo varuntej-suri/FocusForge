@@ -114,11 +114,7 @@ def create_session(
     db: Session = Depends(get_db)
 
 ):
-    print("=== SESSION API CALLED ===")
-    print(credentials)
-    print("Authorization Header Received")
-    print(credentials)
-    print(credentials.credentials)
+    
 
     payload = verify_access_token(credentials.credentials)
 

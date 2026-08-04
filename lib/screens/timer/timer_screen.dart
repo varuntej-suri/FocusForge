@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+
 import '../../api/session_api.dart';
 import '../../services/dnd_service.dart';
+import '../../services/notification_service.dart';
 import 'celebration_screen.dart';
 import 'session_result_screen.dart';
 
@@ -20,9 +22,6 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> {
-  // -----------------------------
-  // Timer Variables
-  // -----------------------------
   late int totalSeconds;
   late int remainingSeconds;
 
@@ -34,208 +33,216 @@ class _TimerScreenState extends State<TimerScreen> {
   void initState() {
     super.initState();
 
-    // Ask DND permission
-    DndService.requestPermission();
-
     totalSeconds = widget.minutes * 60;
     remainingSeconds = totalSeconds;
 
     // Keep screen awake
     WakelockPlus.enable();
 
-    // Enable DND
+    // Request & Enable DND
+    DndService.requestPermission();
     DndService.enableDnd();
 
-    // Start Timer
+    // Start timer
     startTimer();
   }
+    // -----------------------------
+  // Start Timer
   // -----------------------------
-// Start Timer
-// -----------------------------
-void startTimer() {
-  timer = Timer.periodic(
-    const Duration(seconds: 1),
-    (timer) async{
-      if (remainingSeconds > 0) {
-        setState(() {
-          remainingSeconds--;
-        });
-      } else  {
-          // Stop Timer
-          timer.cancel();
+  void startTimer() {
+    timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) async {
+        if (remainingSeconds > 0) {
+          if (!mounted) return;
 
-          // Disable Wakelock
-          WakelockPlus.disable();
+          setState(() {
+            remainingSeconds--;
+          });
 
-          // Disable DND
-          DndService.disableDnd();
+          return;
+        }
 
-          // Save session to backend
-          bool saved = await SessionApi.saveSession(
+        // Stop timer
+        timer.cancel();
+
+        // Disable wakelock
+        await WakelockPlus.disable();
+
+        // Disable DND
+        await DndService.disableDnd();
+
+        // Save session
+        try {
+          await SessionApi.saveSession(
             duration: widget.minutes,
             completed: true,
           );
+        } catch (e) {
+          // Ignore notification scheduling errors
+        }
 
-          print("Session Saved: $saved");
+        // Show notification
+        await NotificationService.showSessionCompletedNotification(
+          widget.minutes,
+        );
 
-          if (!mounted) return;
+        if (!mounted) return;
 
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CelebrationScreen(
-                minutes: widget.minutes,
-                totalSeconds: totalSeconds,
-                focusedSeconds: totalSeconds,
-              ),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CelebrationScreen(
+              minutes: widget.minutes,
+              totalSeconds: totalSeconds,
+              focusedSeconds: totalSeconds,
             ),
-          );
-      }
-    },
-  );
+          ),
+        );
+      },
+    );
 
-  setState(() {
-    isRunning = true;
-  });
-}
-// -----------------------------
-// Pause Timer
-// -----------------------------
-void pauseTimer() {
-  timer?.cancel();
+    setState(() {
+      isRunning = true;
+    });
+  }
+    // -----------------------------
+  // Pause Timer
+  // -----------------------------
+  void pauseTimer() {
+    timer?.cancel();
 
-  setState(() {
-    isRunning = false;
-  });
-}
+    if (!mounted) return;
 
-// -----------------------------
-// Resume Timer
-// -----------------------------
-void resumeTimer() {
-  startTimer();
-}
+    setState(() {
+      isRunning = false;
+    });
+  }
 
-// -----------------------------
-// Skip Session Dialog
-// -----------------------------
-void showSkipDialog() {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text("Skip Session?"),
-      content: const Text(
-        "Are you sure you want to skip this focus session?",
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text("Continue"),
+  // -----------------------------
+  // Resume Timer
+  // -----------------------------
+  void resumeTimer() {
+    startTimer();
+  }
+
+  // -----------------------------
+  // Skip Session
+  // -----------------------------
+  void showSkipDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Skip Session?"),
+        content: const Text(
+          "Are you sure you want to skip this focus session?",
         ),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context);
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text("Continue"),
+          ),
+          ElevatedButton(
+  onPressed: () async {
+    final navigator = Navigator.of(context);
 
-            // Stop Timer
-            timer?.cancel();
+    navigator.pop();
 
-            // Disable Wakelock
-            WakelockPlus.disable();
+    timer?.cancel();
 
-            // Disable DND
-            DndService.disableDnd();
+    await WakelockPlus.disable();
+    await DndService.disableDnd();
 
-            final focusedSeconds =
-                totalSeconds - remainingSeconds;
+    final focusedSeconds =
+        totalSeconds - remainingSeconds;
 
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SessionResultScreen(
-                  minutes: widget.minutes,
-                  totalSeconds: totalSeconds,
-                  focusedSeconds: focusedSeconds,
-                  completed: false,
+    if (!mounted) return;
+
+    navigator.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => SessionResultScreen(
+          minutes: widget.minutes,
+          totalSeconds: totalSeconds,
+          focusedSeconds: focusedSeconds,
+          completed: false,
+        ),
+      ),
+    );
+  },
+  child: const Text("Skip"),
+),
+        ],
+      ),
+    );
+  }
+
+  // -----------------------------
+  // Format Timer
+  // -----------------------------
+  String formatTime() {
+    final minutes = remainingSeconds ~/ 60;
+    final seconds = remainingSeconds % 60;
+
+    return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
+  }
+
+  // -----------------------------
+  // Dispose
+  // -----------------------------
+  @override
+  void dispose() {
+    timer?.cancel();
+
+    WakelockPlus.disable();
+    DndService.disableDnd();
+
+    super.dispose();
+  }
+    @override
+  Widget build(BuildContext context) {
+    final progress = remainingSeconds / totalSeconds;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text("Focus Session"),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+
+              const SizedBox(height: 20),
+
+              const Text(
+                "Stay Focused 🔥",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            );
-          },
-          child: const Text("Skip"),
-        ),
-      ],
-    ),
-  );
-}
-// -----------------------------
-// Format Timer
-// -----------------------------
-String formatTime() {
-  final minutes = remainingSeconds ~/ 60;
-  final seconds = remainingSeconds % 60;
 
-  return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
-}
+              const SizedBox(height: 10),
 
-// -----------------------------
-// Dispose
-// -----------------------------
-@override
-void dispose() {
-  // Stop Timer
-  timer?.cancel();
-
-  // Disable Wakelock
-  WakelockPlus.disable();
-
-  // Disable DND
-  DndService.disableDnd();
-
-  super.dispose();
-}
-@override
-Widget build(BuildContext context) {
-  final progress = remainingSeconds / totalSeconds;
-
-  return Scaffold(
-    backgroundColor: const Color(0xFF121212),
-    appBar: AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: true,
-      title: const Text("Focus Session"),
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-
-            const Text(
-              "Stay Focused 🔥",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
+              const Text(
+                "Complete your session without distractions",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 35),
 
-            const Text(
-              "Complete your session without distractions",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            Center(
-              child: SizedBox(
+              SizedBox(
                 width: 300,
                 height: 300,
                 child: Stack(
@@ -249,8 +256,7 @@ Widget build(BuildContext context) {
                         value: progress,
                         strokeWidth: 14,
                         backgroundColor: Colors.white24,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(
+                        valueColor: const AlwaysStoppedAnimation<Color>(
                           Colors.deepPurple,
                         ),
                       ),
@@ -262,8 +268,8 @@ Widget build(BuildContext context) {
 
                         const Icon(
                           Icons.timer,
-                          color: Colors.deepPurple,
                           size: 40,
+                          color: Colors.deepPurple,
                         ),
 
                         const SizedBox(height: 15),
@@ -291,124 +297,88 @@ Widget build(BuildContext context) {
                   ],
                 ),
               ),
-            ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 20,
-              ),
-              child: Column(
+              const SizedBox(height: 35),
+
+              Row(
                 children: [
-                                    Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (isRunning) {
-                              pauseTimer();
-                            } else {
-                              resumeTimer();
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 55),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          icon: Icon(
-                            isRunning
-                                ? Icons.pause
-                                : Icons.play_arrow,
-                          ),
-                          label: Text(
-                            isRunning
-                                ? "Pause"
-                                : "Resume",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        if (isRunning) {
+                          pauseTimer();
+                        } else {
+                          resumeTimer();
+                        }
+                      },
+                      icon: Icon(
+                        isRunning
+                            ? Icons.pause
+                            : Icons.play_arrow,
                       ),
-
-                      const SizedBox(width: 15),
-
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            timer?.cancel();
-
-                            // Disable Wakelock
-                            WakelockPlus.disable();
-
-                            // Disable DND
-                            DndService.disableDnd();
-
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 55),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          icon: const Icon(Icons.exit_to_app),
-                          label: const Text(
-                            "Exit",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                      label: Text(
+                        isRunning
+                            ? "Pause"
+                            : "Resume",
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: OutlinedButton.icon(
-                      onPressed: showSkipDialog,
-                      icon: const Icon(Icons.skip_next),
-                      label: const Text(
-                        "Skip Session",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orange,
-                        side: const BorderSide(
-                          color: Colors.orange,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 55),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(width: 15),
+
+                  Expanded(
+  child: ElevatedButton.icon(
+    onPressed: () async {
+      final navigator = Navigator.of(context);
+
+      timer?.cancel();
+
+      await WakelockPlus.disable();
+      await DndService.disableDnd();
+
+      if (!mounted) return;
+
+      navigator.pop();
+    },
+    icon: const Icon(Icons.exit_to_app),
+    label: const Text("Exit"),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.red,
+      foregroundColor: Colors.white,
+      minimumSize: const Size(double.infinity, 55),
+    ),
+  ),
+),
+
                 ],
               ),
-            ),
 
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 15),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  onPressed: showSkipDialog,
+                  icon: const Icon(Icons.skip_next),
+                  label: const Text("Skip Session"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange,
+                    side: const BorderSide(color: Colors.orange),
+                  ),
+                ),
+              ),
+
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

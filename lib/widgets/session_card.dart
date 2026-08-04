@@ -36,7 +36,7 @@ class SessionCard extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.deepPurpleAccent.withOpacity(0.35),
+                    color: Colors.deepPurpleAccent.withValues(alpha:0.35),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),

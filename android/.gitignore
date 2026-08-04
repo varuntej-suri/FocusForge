@@ -1,5 +1,5 @@
 gradle-wrapper.jar
-/.gradle
+**/.gradle/
 /captures/
 /gradlew
 /gradlew.bat
@@ -12,3 +12,17 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# Flutter
+.dart_tool/
+build/
+
+# VS Code
+.vscode/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Database
+*.db
