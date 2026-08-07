@@ -4,7 +4,13 @@ from jose import JWTError
 from fastapi import HTTPException
 
 # Secret key (change this in production)
-SECRET_KEY = "focusforge_super_secret_key"
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # Algorithm used for signing JWT
 ALGORITHM = "HS256"
