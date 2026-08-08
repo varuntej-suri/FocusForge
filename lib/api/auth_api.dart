@@ -6,7 +6,8 @@ import '../models/user_model.dart';
 import '../services/token_service.dart';
 
 class AuthApi {
-  static const String baseUrl = "http://192.168.0.110:8000";
+  static const String baseUrl =
+    "https://focusforge-api-ceej.onrender.com";
     static Future<Map<String, dynamic>> registerUser({
     required String name,
     required String email,
